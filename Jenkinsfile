@@ -8,7 +8,7 @@ pipeline {
   }
 
   environment {
-    GIT_URL = 'https://github.com/gaidaahmed/spring-petclinic.git'
+    GIT_URL   = 'https://github.com/gaidaahmed/spring-petclinic.git'
     JAVA_HOME = '/var/jenkins_home/.sdkman/candidates/java/current'
   }
 
@@ -45,15 +45,11 @@ pipeline {
     stage('Parallel Testing') {
       parallel {
         stage('Unit Tests') {
-          steps {
-            sh 'export PATH="${JAVA_HOME}/bin:${PATH}"; ./mvnw -B test'
-          }
+          steps { sh 'export PATH="${JAVA_HOME}/bin:${PATH}"; ./mvnw -B test' }
           post { always { junit testResults: 'target/surefire-reports/*.xml', allowEmptyResults: true } }
         }
         stage('Integration Tests') {
-          steps {
-            sh 'export PATH="${JAVA_HOME}/bin:${PATH}"; ./mvnw -B -DskipUnitTests=true verify || true'
-          }
+          steps { sh 'export PATH="${JAVA_HOME}/bin:${PATH}"; ./mvnw -B -DskipUnitTests=true verify || true' }
           post { always { junit testResults: 'target/failsafe-reports/*.xml', allowEmptyResults: true } }
         }
       }
