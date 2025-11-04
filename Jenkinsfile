@@ -45,12 +45,32 @@ pipeline {
     stage('Parallel Testing') {
       parallel {
         stage('Unit Tests') {
-          steps { sh 'export PATH="${JAVA_HOME}/bin:${PATH}"; ./mvnw -B test' }
-          post { always { junit testResults: 'target/surefire-reports/*.xml', allowEmptyResults: true } }
+          steps {
+            // Exclude PostgresIntegrationTests and skip docker-compose in tests
+            sh '''
+              export PATH="${JAVA_HOME}/bin:${PATH}"
+              ./mvnw -B -Dspring.docker.compose.skip.in-tests=true \
+                     -Dtest=\\!PostgresIntegrationTests \
+                     test
+            '''
+          }
+          post {
+            always { junit testResults: 'target/**/TEST-*.xml', allowEmptyResults: false }
+          }
         }
-        stage('Integration Tests') {
-          steps { sh 'export PATH="${JAVA_HOME}/bin:${PATH}"; ./mvnw -B -DskipUnitTests=true verify || true' }
-          post { always { junit testResults: 'target/failsafe-reports/*.xml', allowEmptyResults: true } }
+        stage('Integration Tests (MySQL only)') {
+          steps {
+            // Run only the MySQL ITs; also skip docker-compose
+            sh '''
+              export PATH="${JAVA_HOME}/bin:${PATH}"
+              ./mvnw -B -Dspring.docker.compose.skip.in-tests=true \
+                     -Dtest=org.springframework.samples.petclinic.MySqlIntegrationTests \
+                     verify
+            '''
+          }
+          post {
+            always { junit testResults: 'target/**/TEST-*.xml', allowEmptyResults: true }
+          }
         }
       }
     }
@@ -77,6 +97,7 @@ pipeline {
         sh '''
           docker network inspect petnet >/dev/null 2>&1 || docker network create petnet
           docker rm -f petclinic-${BUILD_NUMBER} >/dev/null 2>&1 || true
+          # host 8082 (busy 8080), container 8080
           docker run -d --name petclinic-${BUILD_NUMBER} --network petnet -p 8082:8080 ${DOCKER_IMAGE}:${DOCKER_TAG}
           echo "Application deployed successfully."
         '''
